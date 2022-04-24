@@ -1,0 +1,3 @@
+(fp_lib_table
+  (lib (name "Zorro")(type "KiCad")(uri "${KIPRJMOD}/Libs/Zorro.pretty")(options "")(descr ""))
+)
