@@ -4,11 +4,16 @@
  *
  * BootSelectWB
  * 
- * A ROM Module to select the relevant WB partition depending on the Kickstart version
+ * A ROM Module to select the relevant WB partition depending on the Kickstart version.
  * 
- * Requires 2 partitions, one with a device name of WB_1.3 and one with WB_2.X
+ * Requires n partitions, with specific device names.  No-op if only one partition or naming doesn't match. Names:
+ * - WB_1.3
+ * - WB_2.X
+ * - WB_3.0
+ * - WB_3.1
+ * - WB_3.2
  * 
- * The module will make the opposite WB partition non-bootable, i.e if booting Kick 2.0 or up, WB 1.3 will be made non bootable
+ * The module will make the other WB partitions non-bootable, i.e if booting Kick 2.0, WB 1.3 will be made non bootable.
  * 
  * LICENSE: GPL 2.0 Only
  */
@@ -44,10 +49,20 @@ asm("romtag:                                \n"
     "       dc.l    _modname                \n"
     "       dc.l    _init                   \n");
 
+enum bootNodeID
+{
+    BootNodeWB13 = 0,
+    BootNodeWB2x,
+    BootNodeWB30,
+    BootNodeWB31,
+    BootNodeWB314,
+    BootNodeWB32,
+    BootNodeMax
+};
 
 const char modname[] = "bootselectwb";
-const char partName_1[] = "\6WB_1.3";
-const char partName_2[] = "\6WB_2.X";
+const char partName[BootNodeMax] = {"\6WB_1.3", "\6WB_2.X", "\6WB_3.0", "\6WB_3.1", "\8WB_3.1.4", "\6WB_3.2"};
+const UWORD kickVers[BootNodeMax] = {34, 36, 39, 40, 46, 47};
 
 /**
  * toLower
@@ -55,7 +70,7 @@ const char partName_2[] = "\6WB_2.X";
  * Pretty self explanatory
  *
  * @param c char to return in lowercase
- * @returns lowecase char
+ * @returns lowercase char
  */
 char toLower(char c) {
     if (c >= 'A' && c <= 'Z')
@@ -122,39 +137,38 @@ static struct Library __attribute__((used)) * init(BPTR seg_list asm("a0"))
         struct List *mountList = &ExpansionBase->MountList;
 
         struct BootNode   *bn      = NULL;
-        struct BootNode   *bn_wb13 = NULL;
-        struct BootNode   *bn_wb2x = NULL;
-
+        struct BootNode   *bnodes[BootNodeMax] = {};
+        UWORD bnodesSet = 0;
         struct DeviceNode *dn;
+        enum BootNodeId id;
 
         for (bn = (struct BootNode *)mountList->lh_Head;
              bn->bn_Node.ln_Succ != NULL;
              bn = (struct BootNode *)bn->bn_Node.ln_Succ)
         {
-
             dn = bn->bn_DeviceNode;
 
-            if (compareBstr((char *)&partName_1,(char *)BADDR(dn->dn_Name))) {
-                bn_wb13 = bn;
-                continue;
-            }
-            if (compareBstr((char *)&partName_2,(char *)BADDR(dn->dn_Name))) {
-                bn_wb2x = bn;
-                continue;
+            for (id = BootNodeWB13; id < BootNodeMax; id++)
+            {
+                if (compareBstr((char *)&partName[id],(char *)BADDR(dn->dn_Name))) {
+                    bnodes[id] = bn;
+                    bnodesSet++;
+                    break;
+                }
             }
         }
 
-        if (SysBase->SoftVer >= 36) {
-            if (bn_wb13)
-                demotePart(mountList, bn_wb13);
-        } else {
-            if (bn_wb2x)
-                demotePart(mountList, bn_wb2x);
+        if (bnodesSet > 1)
+        {
+            for (id = BootNodeWB13; id < BootNodeMax; id++)
+            {
+                if ((SysBase->SoftVer != kickVers[id]) && (bnodes[id] != NULL))
+                  demotePart(mountList, bnodes[id]);
+            }
         }
 
+        CloseLibrary((struct Library *)ExpansionBase);      
     }
-
-    if (ExpansionBase) CloseLibrary((struct Library *)ExpansionBase);
 
     return NULL;
 }
