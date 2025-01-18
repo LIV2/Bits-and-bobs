@@ -162,7 +162,7 @@ static struct Library __attribute__((used)) * init(BPTR seg_list asm("a0"))
         {
             for (id = BootNodeWB13; id < BootNodeMax; id++)
             {
-                if ((SysBase->SoftVer != kickVers[id]) && (bnodes[id] != NULL))
+                if ((SysBase->LibNode.lib_Version != kickVers[id]) && (bnodes[id] != NULL))
                   demotePart(mountList, bnodes[id]);
             }
         }
