@@ -3,18 +3,18 @@
  * Copyright (C) 2025 Matthew Harlum <matt@harlum.net>
  *
  * BootSelectWB
- * 
+ *
  * A ROM Module to select the relevant WB partition depending on the Kickstart version.
- * 
+ *
  * Requires n partitions, with specific device names.  No-op if only one partition or naming doesn't match. Names:
  * - WB_1.3
  * - WB_2.X
  * - WB_3.0
  * - WB_3.1
  * - WB_3.2
- * 
+ *
  * The module will make the other WB partitions non-bootable, i.e if booting Kick 2.0, WB 1.3 will be made non bootable.
- * 
+ *
  * LICENSE: GPL 2.0 Only
  */
 #include <exec/execbase.h>
@@ -61,7 +61,7 @@ enum bootNodeID
 };
 
 const char modname[] = "bootselectwb";
-const char partName[BootNodeMax] = {"\6WB_1.3", "\6WB_2.X", "\6WB_3.0", "\6WB_3.1", "\8WB_3.1.4", "\6WB_3.2"};
+const char * const partName[BootNodeMax] = {"\6WB_1.3", "\6WB_2.X", "\6WB_3.0", "\6WB_3.1", "\8WB_3.1.4", "\6WB_3.2"};
 const UWORD kickVers[BootNodeMax] = {34, 36, 39, 40, 46, 47};
 
 /**
@@ -140,7 +140,7 @@ static struct Library __attribute__((used)) * init(BPTR seg_list asm("a0"))
         struct BootNode   *bnodes[BootNodeMax] = {};
         UWORD bnodesSet = 0;
         struct DeviceNode *dn;
-        enum BootNodeId id;
+        enum bootNodeID id;
 
         for (bn = (struct BootNode *)mountList->lh_Head;
              bn->bn_Node.ln_Succ != NULL;
@@ -150,7 +150,7 @@ static struct Library __attribute__((used)) * init(BPTR seg_list asm("a0"))
 
             for (id = BootNodeWB13; id < BootNodeMax; id++)
             {
-                if (compareBstr((char *)&partName[id],(char *)BADDR(dn->dn_Name))) {
+                if (compareBstr((char *)partName[id],(char *)BADDR(dn->dn_Name))) {
                     bnodes[id] = bn;
                     bnodesSet++;
                     break;
@@ -167,7 +167,7 @@ static struct Library __attribute__((used)) * init(BPTR seg_list asm("a0"))
             }
         }
 
-        CloseLibrary((struct Library *)ExpansionBase);      
+        CloseLibrary((struct Library *)ExpansionBase);
     }
 
     return NULL;
